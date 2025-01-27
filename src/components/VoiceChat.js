@@ -25,7 +25,7 @@ const VoiceChat = () => {
   const peerRef = useRef(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5001', {
+    const newSocket = io('https://airspeak.onrender.com', {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
