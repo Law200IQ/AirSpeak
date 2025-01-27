@@ -72,7 +72,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SocketContext.Provider value={socket}>
-        <Router>
+        <Router basename="/AirSpeak">
           <div className="App">
             <NavBar socket={socket} />
             <main style={{ minHeight: 'calc(100vh - 64px - 300px)', padding: '24px 0' }}>

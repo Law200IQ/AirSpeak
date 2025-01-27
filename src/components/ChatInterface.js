@@ -272,6 +272,12 @@ const ChatInterface = ({ micStatus, socket, isInCall, setIsInCall }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleAutoCallChange = (e) => {
+    const enabled = e.target.checked;
+    setAutoCall(enabled);
+    socketRef.current?.emit('updateAutoCall', enabled);
+  };
+
   const handleCall = () => {
     if (!socketRef.current) {
       console.error('Socket not connected');
@@ -295,6 +301,11 @@ const ChatInterface = ({ micStatus, socket, isInCall, setIsInCall }) => {
         closeOnClick: false,
         draggable: false
       });
+
+      // If auto-call is enabled, this will trigger automatic matchmaking after the call ends
+      if (autoCall) {
+        console.log('Auto-call is enabled - will start new call after this one ends');
+      }
     }
   };
 
@@ -313,24 +324,6 @@ const ChatInterface = ({ micStatus, socket, isInCall, setIsInCall }) => {
       targetId: reportData.targetId,
       callId: reportData.id
     });
-  };
-
-  const handleAutoCallChange = (e) => {
-    const enabled = e.target.checked;
-    setAutoCall(enabled);
-    socketRef.current?.emit('updateAutoCall', enabled);
-    
-    // If enabling auto-call and not in a call, start searching immediately
-    if (enabled && !isInCall && !isSearching) {
-      console.log('Auto-call enabled, starting search');
-      setIsSearching(true);
-      socketRef.current?.emit('startCall');
-      toast.info('Searching for a partner...', {
-        autoClose: false,
-        closeOnClick: false,
-        draggable: false
-      });
-    }
   };
 
   const handleSendMessage = () => {
