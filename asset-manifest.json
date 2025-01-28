@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/AirSpeak/static/css/main.c98b091c.css",
-    "main.js": "/AirSpeak/static/js/main.b3ee0a9e.js",
+    "main.js": "/AirSpeak/static/js/main.8640ab60.js",
     "static/js/453.4d6bde4b.chunk.js": "/AirSpeak/static/js/453.4d6bde4b.chunk.js",
     "index.html": "/AirSpeak/index.html",
     "main.c98b091c.css.map": "/AirSpeak/static/css/main.c98b091c.css.map",
-    "main.b3ee0a9e.js.map": "/AirSpeak/static/js/main.b3ee0a9e.js.map",
+    "main.8640ab60.js.map": "/AirSpeak/static/js/main.8640ab60.js.map",
     "453.4d6bde4b.chunk.js.map": "/AirSpeak/static/js/453.4d6bde4b.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.c98b091c.css",
-    "static/js/main.b3ee0a9e.js"
+    "static/js/main.8640ab60.js"
   ]
 }
