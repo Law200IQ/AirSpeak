@@ -15,39 +15,39 @@ const createSocket = () => {
     secure: true,
     autoConnect: false,
     reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 500,
-    reconnectionDelayMax: 2000,
-    randomizationFactor: 0.5,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     timeout: 5000,
-    upgrade: true,
-    rememberUpgrade: true,
-    forceNew: true,
-    pingInterval: 10000,
-    pingTimeout: 5000,
+    path: '/socket.io',
     query: {
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      version: '1.0.0'
     }
   });
+
+  let isConnected = false;
 
   // Connection event handlers
   socketInstance.on('connect', () => {
     console.log('Connected to server:', socketInstance.id);
+    isConnected = true;
     socketInstance.emit('join');
     socketInstance.sendBuffer = []; // Clear any pending messages
   });
 
   socketInstance.on('connect_error', (error) => {
     console.error('Connection error:', error);
-    // Try polling if websocket fails
-    if (socketInstance.io.opts.transports[0] === 'websocket') {
+    isConnected = false;
+    if (socketInstance.io.opts.transports.includes('websocket')) {
       console.log('Falling back to polling transport');
-      socketInstance.io.opts.transports = ['polling', 'websocket'];
+      socketInstance.io.opts.transports = ['polling'];
     }
   });
 
   socketInstance.on('disconnect', (reason) => {
     console.log('Disconnected:', reason);
+    isConnected = false;
     // Reconnect on certain disconnect reasons
     if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
       console.log('Attempting to reconnect...');
@@ -57,6 +57,7 @@ const createSocket = () => {
 
   socketInstance.on('reconnect', (attemptNumber) => {
     console.log('Reconnected after', attemptNumber, 'attempts');
+    isConnected = true;
     socketInstance.emit('join');
   });
 
@@ -71,6 +72,7 @@ const createSocket = () => {
 
   socketInstance.on('reconnect_error', (error) => {
     console.error('Reconnection error:', error);
+    isConnected = false;
   });
 
   socketInstance.on('reconnect_failed', () => {
@@ -103,9 +105,9 @@ const createSocket = () => {
     console.log('Received pong from server');
   });
 
-  return socketInstance;
+  return { socket: socketInstance, isConnected };
 };
 
-const socket = createSocket();
+const { socket, isConnected } = createSocket();
 
-export default socket;
+export { socket as default, isConnected };
