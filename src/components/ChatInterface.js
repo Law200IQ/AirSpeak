@@ -99,9 +99,21 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
         <LogoText>
           Air<span>Speak</span>
         </LogoText>
-        <Typography variant="h6" color="white" sx={{ mb: 2 }}>
-          {isInCall ? (
-            <>Your partner is from {getCountryEmoji(partnerCountry)}</>
+        <Typography 
+          variant="h6" 
+          color="white" 
+          sx={{ 
+            mb: 2,
+            textAlign: 'center',
+            fontSize: '1.25rem',
+            fontWeight: 500
+          }}
+        >
+          {isInCall && partnerCountry ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <span>Your partner is from</span>
+              <span style={{ fontSize: '1.5rem' }}>{getCountryEmoji(partnerCountry)}</span>
+            </div>
           ) : isSearching ? (
             'Searching for partner...'
           ) : (
