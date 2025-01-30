@@ -79,62 +79,25 @@ const ALL_COUNTRIES = [
 // Helper function to get country from IP
 const getCountryFromIP = (ip) => {
   try {
-    // For development/localhost/internal IPs
-    if (!ip || 
-        ip === '::1' || 
-        ip === '127.0.0.1' || 
-        ip.includes('192.168.') || 
-        ip.includes('10.') || 
-        ip.includes('172.') ||
-        process.env.NODE_ENV === 'development') {
-      console.log('Development/local IP detected:', ip);
-      // Return a random country for testing
-      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
-      console.log(`Using random country ${randomCountry} for development`);
-      return randomCountry;
-    }
-
     // Remove IPv6 prefix if present
     const cleanIP = ip.replace(/^::ffff:/, '');
-    
-    // Check if IP is private/local after cleaning
-    if (cleanIP === '127.0.0.1' || 
-        cleanIP.startsWith('192.168.') || 
-        cleanIP.startsWith('10.') || 
-        cleanIP.startsWith('172.')) {
-      console.log('Local network IP detected:', cleanIP);
-      // Return a random country for testing
-      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
-      console.log(`Using random country ${randomCountry} for local IP`);
-      return randomCountry;
-    }
     
     // Lookup location
     const geo = geoip.lookup(cleanIP);
     console.log('Geo lookup result for IP', cleanIP, ':', geo);
     
     if (!geo || !geo.country) {
-      console.log(`No country found for IP: ${cleanIP}, using random country`);
-      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
-      console.log(`Using random country ${randomCountry} for unknown IP`);
-      return randomCountry;
+      console.log(`No country found for IP: ${cleanIP}`);
+      return 'UN'; // Return UN if we can't detect the country
     }
 
-    // Validate that the country code exists in our list
+    // Get the real country code
     const countryCode = geo.country.toUpperCase();
-    if (!ALL_COUNTRIES.includes(countryCode)) {
-      console.log(`Invalid country code ${countryCode} from geo lookup, using random country`);
-      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
-      return randomCountry;
-    }
-
-    console.log(`Found country ${geo.country} for IP: ${cleanIP}`);
-    return geo.country;
+    console.log(`Found country ${countryCode} for IP: ${cleanIP}`);
+    return countryCode;
   } catch (error) {
     console.error(`Error getting country from IP ${ip}:`, error);
-    const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
-    console.log(`Using random country ${randomCountry} due to error`);
-    return randomCountry;
+    return 'UN';
   }
 };
 
@@ -156,7 +119,6 @@ io.on('connection', (socket) => {
   console.log(`New connection from ${userIP} (${userCountry})`);
 
   socket.on('join', () => {
-    console.log('User joined:', socket.id);
     console.log(`User ${socket.id} joined from ${userCountry}`);
     activeUsers.set(socket.id, {
       socketId: socket.id,
@@ -196,7 +158,7 @@ io.on('connection', (socket) => {
         user2: { id: partner.socketId, country: partner.country }
       });
 
-      // Notify both users
+      // Notify both users with their partner's country
       io.to(socket.id).emit('callStarted', {
         callId,
         targetId: partner.socketId,

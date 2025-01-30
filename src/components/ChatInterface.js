@@ -65,6 +65,10 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
 
     // Clean and validate the country code
     const code = countryCode.toUpperCase().trim();
+    if (code === 'UN') {
+      return '🌍';
+    }
+
     if (code.length !== 2) {
       console.log('Invalid country code length:', code);
       return '🌍';
