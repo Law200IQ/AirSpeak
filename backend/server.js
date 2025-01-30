@@ -78,26 +78,44 @@ const ALL_COUNTRIES = [
 
 // Helper function to get country from IP
 const getCountryFromIP = (ip) => {
+  if (!ip) return null;
+  
   try {
-    // Remove IPv6 prefix if present
-    const cleanIP = ip.replace(/^::ffff:/, '');
-    
-    // Lookup location
-    const geo = geoip.lookup(cleanIP);
-    console.log('Geo lookup result for IP', cleanIP, ':', geo);
-    
-    if (!geo || !geo.country) {
-      console.log(`No country found for IP: ${cleanIP}`);
-      return 'UN'; // Return UN if we can't detect the country
+    // Split IP string and get the first real IP
+    const ips = ip.split(',').map(ip => ip.trim());
+    // Get the first non-private IP from the list
+    const realIP = ips.find(ip => {
+      return !ip.startsWith('10.') && 
+             !ip.startsWith('172.') && 
+             !ip.startsWith('192.168.') &&
+             ip !== '127.0.0.1' &&
+             ip !== '::1';
+    });
+
+    if (!realIP) {
+      console.log('No public IP found:', ips);
+      return null;
     }
 
-    // Get the real country code
-    const countryCode = geo.country.toUpperCase();
-    console.log(`Found country ${countryCode} for IP: ${cleanIP}`);
-    return countryCode;
+    // Remove IPv6 prefix if present
+    const cleanIP = realIP.replace(/^::ffff:/, '');
+    console.log('Using IP:', cleanIP);
+
+    // Get geolocation data
+    const geo = geoip.lookup(cleanIP);
+    console.log('Geolocation result:', geo);
+
+    if (!geo || !geo.country) {
+      console.log('No country found for IP:', cleanIP);
+      return null;
+    }
+
+    const country = geo.country.toUpperCase();
+    console.log('Detected country:', country);
+    return country;
   } catch (error) {
-    console.error(`Error getting country from IP ${ip}:`, error);
-    return 'UN';
+    console.error('Error in getCountryFromIP:', error);
+    return null;
   }
 };
 
@@ -115,17 +133,41 @@ io.on('connection', (socket) => {
     direct: socket.handshake.address
   });
 
-  const userCountry = getCountryFromIP(userIP);
-  console.log(`New connection from ${userIP} (${userCountry})`);
+  let country = null;
+
+  // First try Cloudflare country header
+  if (socket.handshake.headers['cf-ipcountry']) {
+    country = socket.handshake.headers['cf-ipcountry'].toUpperCase();
+    console.log('Got country from CF header:', country);
+  }
+
+  // If no CF country, try each IP source
+  if (!country) {
+    const ipSources = [userIP].filter(Boolean);
+    for (const ipSource of ipSources) {
+      country = getCountryFromIP(ipSource);
+      if (country) {
+        console.log('Got country from IP:', ipSource, country);
+        break;
+      }
+    }
+  }
+
+  console.log(`Final country detection for ${socket.id}:`, country || 'not detected');
 
   socket.on('join', () => {
-    console.log(`User ${socket.id} joined from ${userCountry}`);
-    activeUsers.set(socket.id, {
-      socketId: socket.id,
-      country: userCountry,
-      busy: false,
-      lastActivity: Date.now()
-    });
+    if (country) {
+      activeUsers.set(socket.id, {
+        socketId: socket.id,
+        country: country,
+        busy: false,
+        lastActivity: Date.now()
+      });
+      socket.emit('countryDetected', { country });
+      console.log('Sent country to user:', country);
+    } else {
+      console.log('No country detected for user:', socket.id);
+    }
   });
 
   socket.on('startCall', async () => {

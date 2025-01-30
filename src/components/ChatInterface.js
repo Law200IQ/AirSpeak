@@ -1,147 +1,128 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, IconButton, Typography } from '@mui/material';
-import { Call as CallIcon, Mic as MicIcon, MicOff as MicOffIcon } from '@mui/icons-material';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Box, Button, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
+import socket from '../socket';
 
-const ChatContainer = styled(Box)({
-  width: '800px',
-  margin: '0 auto',
-  padding: '20px',
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100vh',
-  backgroundColor: '#1A1B1E',
-  color: '#FFFFFF',
-});
-
-const CallSection = styled(Box)({
+const ChatContainer = styled('div')({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  marginBottom: '20px',
+  justifyContent: 'center',
+  minHeight: '100vh',
+  padding: '20px',
+  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+  color: 'white'
+});
+
+const CallSection = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '20px',
+  borderRadius: '10px',
+  background: 'rgba(255, 255, 255, 0.1)',
+  backdropFilter: 'blur(10px)',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  width: '100%',
+  maxWidth: '400px',
+  margin: '20px 0'
+});
+
+const ActionButtons = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  width: '100%'
 });
 
 const LogoText = styled(Typography)({
-  fontSize: '2rem',
+  fontSize: '2.5rem',
   fontWeight: 'bold',
-  marginBottom: '1rem',
-  color: '#FFFFFF',
-  '& span': {
-    color: '#6C5DD3',
-  },
-});
-
-const ActionButtons = styled(Box)({
-  display: 'flex',
-  justifyContent: 'center',
   marginBottom: '20px',
+  color: 'white',
+  textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
+  '& span': {
+    color: '#FFD700'
+  }
 });
 
-const ActionButton = styled(IconButton)(({ active }) => ({
-  backgroundColor: active ? '#FF4B4B' : '#6C5DD3',
-  color: '#FFFFFF',
-  padding: '12px',
-  '&:hover': {
-    backgroundColor: active ? '#E53E3E' : '#5C4DB3',
-  },
-  '&.Mui-disabled': {
-    backgroundColor: '#2D2D2D',
-    color: '#666666',
-  },
-}));
-
-const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
-  const [isMuted, setIsMuted] = useState(false);
+const ChatInterface = ({ setIsInCall }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [partnerCountry, setPartnerCountry] = useState(null);
   const socketRef = useRef(socket);
 
-  const getCountryEmoji = useCallback((countryCode) => {
-    if (!countryCode || typeof countryCode !== 'string') {
-      console.log('Invalid country code:', countryCode);
-      return '🌍';
-    }
-
-    // Clean and validate the country code
-    const code = countryCode.toUpperCase().trim();
-    if (code === 'UN') {
-      return '🌍';
-    }
-
-    if (code.length !== 2) {
-      console.log('Invalid country code length:', code);
-      return '🌍';
-    }
-
+  const getCountryNameAndFlag = useCallback((countryCode) => {
+    if (!countryCode) return null;
+    
     try {
-      // Convert country code to flag emoji using regional indicator symbols
-      const codePoints = Array.from(code).map(char => 127397 + char.charCodeAt(0));
-      const flagEmoji = String.fromCodePoint(...codePoints);
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      let name = regionNames.of(countryCode);
+      let flag = countryCode
+        .toUpperCase()
+        .replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt()));
       
-      // Verify the flag was generated correctly
-      if (flagEmoji.length !== 2) {
-        console.error('Invalid flag emoji generated:', {
-          code,
-          codePoints,
-          flagEmoji,
-          length: flagEmoji.length
-        });
-        return '🌍';
-      }
-
-      console.log('Flag generated successfully:', {
-        code,
-        codePoints,
-        flagEmoji
-      });
-      return flagEmoji;
+      console.log('Country info:', { countryCode, name, flag });
+      return { name, flag };
     } catch (error) {
-      console.error('Error generating flag:', error);
-      return '🌍';
+      console.error('Error getting country name:', error);
+      return null;
     }
   }, []);
 
   const handleCall = useCallback(() => {
     if (!socketRef.current) return;
+    
     setIsSearching(true);
     socketRef.current.emit('startCall');
-    toast.info('Searching for a partner...', { toastId: 'searchStatus' });
-  }, []);
+    
+    toast.info('Searching for a partner...', {
+      position: "top-center",
+      autoClose: 3000
+    });
+  }, [setIsSearching]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (socket) {
+      socket.on('callStarted', (data) => {
+        console.log('Call started with data:', data);
+        const { targetId, targetCountry } = data;
+        
+        if (!targetCountry) {
+          console.log('No target country provided');
+          setIsInCall(true);
+          setIsSearching(false);
+          return;
+        }
 
-    socket.on('callStarted', (data) => {
-      console.log('Call started with data:', data);
-      const country = data.targetCountry;
-      
-      if (!country) {
-        console.error('No country code received:', data);
-        return;
-      }
+        const countryInfo = getCountryNameAndFlag(targetCountry);
+        console.log('Processed country info:', countryInfo);
+        
+        if (countryInfo) {
+          setPartnerCountry(countryInfo);
+          console.log('Set partner country:', countryInfo);
+        }
 
-      setIsInCall(true);
-      setIsSearching(false);
-      setPartnerCountry(country);
-      
-      const flag = getCountryEmoji(country);
-      console.log('Partner info:', {
-        country,
-        flag,
-        rawData: data
+        setIsInCall(true);
+        setIsSearching(false);
       });
-      
-      toast.success('Partner found!', {
-        position: "top-center",
-        autoClose: 3000
-      });
-    });
 
-    return () => {
-      socket.off('callStarted');
-    };
-  }, [socket, setIsInCall, getCountryEmoji]);
+      socket.on('noPartnerFound', () => {
+        console.log('No partner found');
+        setIsSearching(false);
+        toast.info('No partner found. Try again!', {
+          position: "top-center",
+          autoClose: 3000
+        });
+      });
+
+      return () => {
+        socket.off('callStarted');
+        socket.off('noPartnerFound');
+      };
+    }
+  }, [socket, setIsInCall, getCountryNameAndFlag]);
 
   return (
     <ChatContainer>
@@ -149,63 +130,53 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
         <LogoText>
           Air<span>Speak</span>
         </LogoText>
-        <Typography 
-          variant="h6" 
-          color="white" 
-          sx={{ 
-            mb: 2,
-            textAlign: 'center',
-            fontSize: '1.25rem',
-            fontWeight: 500,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          {isInCall && partnerCountry ? (
-            <>
-              <span>Your partner is from</span>
-              <span style={{ 
-                fontSize: '2.5rem', 
-                lineHeight: 1,
-                marginTop: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                {getCountryEmoji(partnerCountry)}
-              </span>
-            </>
-          ) : isSearching ? (
-            'Searching for partner...'
-          ) : (
-            'Start a new call'
-          )}
-        </Typography>
+        
+        {isInCall && partnerCountry?.name && partnerCountry?.flag && (
+          <Typography 
+            variant="h6" 
+            color="white" 
+            sx={{ 
+              mb: 2,
+              textAlign: 'center',
+              fontSize: '1.25rem',
+              fontWeight: 500,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <span>Your partner is from</span>
+            <span style={{ 
+              fontSize: '2.5rem', 
+              lineHeight: 1,
+              marginTop: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              {partnerCountry.flag} {partnerCountry.name}
+            </span>
+          </Typography>
+        )}
         
         <ActionButtons>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <ActionButton 
+            <Button
+              variant="contained"
+              color="primary"
               onClick={handleCall}
-              sx={isSearching ? {
-                backgroundColor: '#FF4B4B',
+              disabled={isSearching}
+              fullWidth
+              sx={{
+                backgroundColor: '#4CAF50',
                 '&:hover': {
-                  backgroundColor: '#E53E3E'
-                },
-                marginRight: '16px'
-              } : {}}
+                  backgroundColor: '#45a049'
+                }
+              }}
             >
-              {isSearching ? <CallIcon sx={{ transform: 'rotate(135deg)' }} /> : <CallIcon />}
-            </ActionButton>
-
-            <ActionButton 
-              onClick={() => setIsMuted(!isMuted)} 
-              active={isMuted}
-              sx={{ marginRight: '16px' }}
-            >
-              {isMuted ? <MicOffIcon /> : <MicIcon />}
-            </ActionButton>
+              {isSearching ? 'Searching...' : 'Start Call'}
+            </Button>
           </Box>
         </ActionButtons>
       </CallSection>
