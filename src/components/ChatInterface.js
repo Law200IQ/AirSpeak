@@ -385,13 +385,13 @@ const ChatInterface = ({ micStatus, socket, isInCall, setIsInCall }) => {
   const getCountryEmoji = (countryCode) => {
     if (!countryCode || countryCode === 'UN') return '🌍';
     try {
-      const codePoints = countryCode
-        .toUpperCase()
+      const code = countryCode.toUpperCase();
+      return code
         .split('')
-        .map(char => 127397 + char.charCodeAt());
-      return String.fromCodePoint(...codePoints);
+        .map(char => String.fromCodePoint(127397 + char.charCodeAt()))
+        .join('');
     } catch (error) {
-      console.error('Error generating country flag:', error);
+      console.error('Error generating flag:', error);
       return '🌍';
     }
   };

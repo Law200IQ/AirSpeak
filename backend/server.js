@@ -58,53 +58,38 @@ const geoCache = new Map();
 
 // Helper function to get country from IP
 const getCountryFromIP = (ip) => {
-  // Remove IPv6 prefix if present
-  const cleanIP = ip.replace(/^::ffff:/, '');
-  
-  // Check cache first
-  if (geoCache.has(cleanIP)) {
-    return geoCache.get(cleanIP);
-  }
-
   try {
+    // Remove IPv6 prefix if present
+    const cleanIP = ip.replace(/^::ffff:/, '');
+    
+    // For development/localhost
+    if (cleanIP === '127.0.0.1' || cleanIP === '::1') {
+      return 'US';  // Default to US for local testing
+    }
+
     // Lookup location
     const geo = geoip.lookup(cleanIP);
     if (!geo || !geo.country) {
-      console.log('No geolocation data found for IP:', cleanIP);
+      console.log(`No country found for IP: ${cleanIP}`);
       return 'UN';
     }
 
-    // Cache the result
-    const country = geo.country;
-    geoCache.set(cleanIP, country);
-    return country;
+    console.log(`Found country ${geo.country} for IP: ${cleanIP}`);
+    return geo.country;
   } catch (error) {
-    console.error('Error getting country from IP:', error);
+    console.error(`Error getting country from IP ${ip}:`, error);
     return 'UN';
   }
-};
-
-// Helper function to find a waiting partner
-const findWaitingPartner = (socket) => {
-  const user = activeUsers.get(socket.id);
-  if (!user) return null;
-
-  // Find the first user who is actively searching (first in, first out)
-  for (const [searcherId, searcher] of searchingUsers) {
-    if (searcherId !== socket.id && !searcher.busy) {
-      return searcher;
-    }
-  }
-  return null;
 };
 
 io.on('connection', (socket) => {
   console.log('New user connected:', socket.id);
   
-  const userCountry = getCountryFromIP(socket.handshake.address);
-  console.log('User country detected:', userCountry, 'for IP:', socket.handshake.address);
+  const userIP = socket.handshake.address;
+  const userCountry = getCountryFromIP(userIP);
+  console.log(`New connection from ${userIP} (${userCountry})`);
 
-  socket.on('join', async () => {
+  socket.on('join', () => {
     console.log('User joined:', socket.id);
     activeUsers.set(socket.id, {
       socketId: socket.id,
@@ -112,6 +97,7 @@ io.on('connection', (socket) => {
       busy: false,
       lastActivity: Date.now()
     });
+    console.log(`User ${socket.id} joined from ${userCountry}`);
   });
 
   socket.on('startCall', async () => {
@@ -289,6 +275,19 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+const findWaitingPartner = (socket) => {
+  const user = activeUsers.get(socket.id);
+  if (!user) return null;
+
+  // Find the first user who is actively searching (first in, first out)
+  for (const [searcherId, searcher] of searchingUsers) {
+    if (searcherId !== socket.id && !searcher.busy) {
+      return searcher;
+    }
+  }
+  return null;
+};
 
 const PORT = process.env.PORT || 10000;
 const HOST = process.env.HOST || '0.0.0.0';
