@@ -59,26 +59,28 @@ const geoCache = new Map();
 // Helper function to get country from IP
 const getCountryFromIP = (ip) => {
   try {
-    // Remove IPv6 prefix if present
-    const cleanIP = ip.replace(/^::ffff:/, '');
-    
     // For development/localhost
-    if (cleanIP === '127.0.0.1' || cleanIP === '::1') {
+    if (ip === '::1' || ip === '127.0.0.1' || ip.includes('192.168.') || ip.includes('10.') || process.env.NODE_ENV === 'development') {
       return 'US';  // Default to US for local testing
     }
 
+    // Remove IPv6 prefix if present
+    const cleanIP = ip.replace(/^::ffff:/, '');
+    
     // Lookup location
     const geo = geoip.lookup(cleanIP);
+    console.log('Geo lookup result:', geo);
+    
     if (!geo || !geo.country) {
       console.log(`No country found for IP: ${cleanIP}`);
-      return 'UN';
+      return 'US'; // Default to US instead of UN
     }
 
     console.log(`Found country ${geo.country} for IP: ${cleanIP}`);
     return geo.country;
   } catch (error) {
     console.error(`Error getting country from IP ${ip}:`, error);
-    return 'UN';
+    return 'US'; // Default to US instead of UN
   }
 };
 
@@ -91,13 +93,13 @@ io.on('connection', (socket) => {
 
   socket.on('join', () => {
     console.log('User joined:', socket.id);
+    console.log(`User ${socket.id} joined from ${userCountry}`);
     activeUsers.set(socket.id, {
       socketId: socket.id,
       country: userCountry,
       busy: false,
       lastActivity: Date.now()
     });
-    console.log(`User ${socket.id} joined from ${userCountry}`);
   });
 
   socket.on('startCall', async () => {
@@ -133,12 +135,12 @@ io.on('connection', (socket) => {
       io.to(socket.id).emit('callStarted', {
         callId,
         targetId: partner.socketId,
-        targetCountry: partner.country
+        targetCountry: partner.country || 'US' // Fallback to US if no country
       });
       io.to(partner.socketId).emit('callStarted', {
         callId,
         targetId: socket.id,
-        targetCountry: user.country
+        targetCountry: user.country || 'US' // Fallback to US if no country
       });
 
       // Save call to database

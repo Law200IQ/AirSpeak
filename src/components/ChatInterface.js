@@ -58,13 +58,16 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
   const socketRef = useRef(socket);
 
   const getCountryEmoji = useCallback((countryCode) => {
-    if (!countryCode || countryCode === 'UN') return '🌍';
+    if (!countryCode) return '🌍';
     try {
       const code = countryCode.toUpperCase();
-      return code
+      // Convert country code to flag emoji
+      const flagEmoji = code
         .split('')
         .map(char => String.fromCodePoint(127397 + char.charCodeAt()))
         .join('');
+      console.log(`Converting country code ${code} to flag emoji: ${flagEmoji}`);
+      return flagEmoji;
     } catch (error) {
       console.error('Error generating flag:', error);
       return '🌍';
@@ -82,10 +85,13 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
     if (!socket) return;
 
     socket.on('callStarted', (data) => {
+      console.log('Call started with data:', data);
       setIsInCall(true);
       setIsSearching(false);
       setPartnerCountry(data.targetCountry);
-      toast.success(`Partner found from ${getCountryEmoji(data.targetCountry)}`);
+      const flag = getCountryEmoji(data.targetCountry);
+      console.log(`Partner country: ${data.targetCountry}, Flag: ${flag}`);
+      toast.success(`Partner found! ${flag}`);
     });
 
     return () => {
@@ -106,14 +112,18 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
             mb: 2,
             textAlign: 'center',
             fontSize: '1.25rem',
-            fontWeight: 500
+            fontWeight: 500,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px'
           }}
         >
           {isInCall && partnerCountry ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <>
               <span>Your partner is from</span>
-              <span style={{ fontSize: '1.5rem' }}>{getCountryEmoji(partnerCountry)}</span>
-            </div>
+              <span style={{ fontSize: '2rem', lineHeight: 1 }}>{getCountryEmoji(partnerCountry)}</span>
+            </>
           ) : isSearching ? (
             'Searching for partner...'
           ) : (
