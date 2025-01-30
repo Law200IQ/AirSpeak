@@ -89,31 +89,19 @@ const ChatInterface = () => {
     }
 
     try {
-      console.log('Initializing peer connection:', { initiator });
       const peer = new Peer({
         initiator,
         stream: micStatus.stream,
-        trickle: true,
+        trickle: false,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            {
-              urls: 'turn:openrelay.metered.ca:80',
-              username: 'openrelayproject',
-              credential: 'openrelayproject'
-            },
-            {
-              urls: 'turn:openrelay.metered.ca:443',
-              username: 'openrelayproject',
-              credential: 'openrelayproject'
-            }
+            { urls: 'stun:stun1.l.google.com:19302' }
           ]
         }
       });
 
       peer.on('signal', data => {
-        console.log('Generated signal data');
         socket.emit('webrtc-signal', {
           signal: data,
           targetId: socket.targetId
@@ -121,38 +109,27 @@ const ChatInterface = () => {
       });
 
       peer.on('stream', stream => {
-        console.log('Received remote stream');
         if (audioRef.current) {
           audioRef.current.srcObject = stream;
-          audioRef.current.play().catch(err => {
-            console.error('Error playing audio:', err);
-          });
+          audioRef.current.play();
         }
       });
 
       peer.on('error', err => {
         console.error('Peer error:', err);
-        toast.error('Connection error. Please try again.');
         cleanupCall();
       });
 
       peer.on('close', () => {
-        console.log('Peer connection closed');
         cleanupCall();
-      });
-
-      peer.on('connect', () => {
-        console.log('Peer connection established');
-        toast.success('Connected to partner!');
       });
 
       return peer;
     } catch (error) {
-      console.error('Error creating peer:', error);
-      toast.error('Failed to establish connection');
+      console.error('Error:', error);
       return null;
     }
-  }, [micStatus.stream]);
+  }, [micStatus.stream, cleanupCall]);
 
   const handleCall = useCallback(() => {
     if (!socket || !micStatus.active) {
