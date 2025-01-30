@@ -111,7 +111,25 @@ const ChatInterface = () => {
       peer.on('stream', stream => {
         if (audioRef.current) {
           audioRef.current.srcObject = stream;
-          audioRef.current.play();
+          audioRef.current.autoplay = true;
+          audioRef.current.playsInline = true;
+          audioRef.current.muted = false;
+          audioRef.current.volume = 1.0;
+          
+          const playAudio = () => {
+            audioRef.current.play()
+              .then(() => console.log('Audio playing'))
+              .catch(err => {
+                console.error('Play failed:', err);
+                document.addEventListener('click', () => {
+                  audioRef.current.play()
+                    .then(() => console.log('Audio playing after click'))
+                    .catch(console.error);
+                }, { once: true });
+              });
+          };
+
+          playAudio();
         }
       });
 
