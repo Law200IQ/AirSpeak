@@ -190,27 +190,32 @@ const ChatInterface = () => {
   }, [micStatus.stream]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('Socket not initialized');
+      return;
+    }
 
-    socket.on('webrtc-signal', async ({ signal, targetId }) => {
-      console.log('Received signal');
-      
-      if (!peerRef.current) {
-        console.log('Creating new peer for incoming signal');
-        const peer = initializePeer(false);
-        if (!peer) return;
-        peerRef.current = peer;
-      }
-
+    console.log('Setting up socket event listeners');
+    const handleSignal = async ({ signal, targetId }) => {
+      console.log('Received signal:', signal.type, 'from:', targetId);
       try {
+        if (!peerRef.current) {
+          console.log('Creating new peer for incoming signal');
+          const peer = initializePeer(false);
+          if (!peer) {
+            console.error('Failed to create peer');
+            return;
+          }
+          peerRef.current = peer;
+        }
         peerRef.current.signal(signal);
       } catch (error) {
-        console.error('Error handling signal:', error);
+        console.error('Signal handling failed:', error);
         cleanupCall();
       }
-    });
+    };
 
-    socket.on('callStarted', ({ targetId, targetCountry }) => {
+    const handleCallStarted = ({ targetId, targetCountry }) => {
       console.log('Call started:', { targetId, targetCountry });
       socket.targetId = targetId;
 
@@ -233,31 +238,30 @@ const ChatInterface = () => {
         setIsInCall(true);
         setIsSearching(false);
       }
-    });
+    };
 
+    socket.on('webrtc-signal', handleSignal);
+    socket.on('callStarted', handleCallStarted);
     socket.on('callEnded', () => {
-      console.log('Call ended');
+      console.log('Call ended by remote peer');
       cleanupCall();
       toast.info('Call ended');
     });
-
     socket.on('noPartnerFound', () => {
-      console.log('No partner found');
+      console.log('No partner found, stopping search');
       setIsSearching(false);
-      toast.info('No partner found. Try again!', {
-        position: "top-center",
-        autoClose: 3000
-      });
+      toast.info('No partner found. Try again!');
     });
 
     return () => {
-      socket.off('webrtc-signal');
-      socket.off('callStarted');
+      console.log('Cleaning up socket event listeners');
+      socket.off('webrtc-signal', handleSignal);
+      socket.off('callStarted', handleCallStarted);
       socket.off('callEnded');
       socket.off('noPartnerFound');
       cleanupCall();
     };
-  }, [initializePeer, cleanupCall]);
+  }, [socket, initializePeer, cleanupCall]);
 
   useEffect(() => {
     initializeMicrophone();
