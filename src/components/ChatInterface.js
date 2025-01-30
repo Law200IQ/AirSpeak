@@ -151,10 +151,12 @@ const ChatInterface = () => {
 
   const handleCall = useCallback(() => {
     if (!socket || !micStatus.active) {
+      console.error('Cannot start call:', !socket ? 'No socket connection' : 'Microphone not active');
       toast.error('Please allow microphone access first');
       return;
     }
     
+    console.log('Starting call search...');
     setIsSearching(true);
     socket.emit('startCall');
     
@@ -162,20 +164,24 @@ const ChatInterface = () => {
       position: "top-center",
       autoClose: 3000
     });
-  }, [micStatus.active]);
+  }, [micStatus.active, socket]);
 
   const cleanupCall = useCallback(() => {
+    console.log('Cleaning up call...');
     if (peerRef.current) {
+      console.log('Destroying peer connection');
       peerRef.current.destroy();
       peerRef.current = null;
     }
 
     if (audioRef.current) {
+      console.log('Cleaning up audio');
       audioRef.current.srcObject = null;
     }
 
     setIsInCall(false);
     setPartnerCountry(null);
+    console.log('Call cleanup complete');
   }, []);
 
   const toggleMute = useCallback(() => {
