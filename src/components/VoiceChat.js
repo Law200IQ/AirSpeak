@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { styled } from '@mui/material/styles';
 import { Box } from '@mui/material';
 import { toast } from 'react-toastify';
-import io from 'socket.io-client';
+import socket from '../utils/socket';
 // Keep Peer for WebRTC functionality
 // eslint-disable-next-line no-unused-vars
 import Peer from 'simple-peer';
@@ -17,12 +17,11 @@ const MainContainer = styled(Box)(({ theme }) => ({
 }));
 
 const VoiceChat = () => {
-  const [socket, setSocket] = useState(null);
   const [isInCall, setIsInCall] = useState(false);
   const [micStatus, setMicStatus] = useState({ active: false, stream: null });
 
   useEffect(() => {
-    const newSocket = io('https://airspeak.onrender.com', {
+    const newSocket = socket('https://airspeak.onrender.com', {
       transports: ['polling', 'websocket'],
       secure: true,
       rejectUnauthorized: false,
@@ -35,7 +34,6 @@ const VoiceChat = () => {
 
     newSocket.on('connect', () => {
       console.log('Connected to server with ID:', newSocket.id);
-      setSocket(newSocket);
       newSocket.emit('join', {});
     });
 
@@ -54,7 +52,6 @@ const VoiceChat = () => {
         toast.error('Microphone access is required. Please allow microphone access and refresh the page.');
       });
 
-    setSocket(newSocket);
     return () => newSocket.close();
   }, []);
 
