@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, IconButton, Typography, Paper, TextField } from '@mui/material';
-import { Call as CallIcon, Mic as MicIcon, MicOff as MicOffIcon, Send as SendIcon } from '@mui/icons-material';
+import { Box, IconButton, Typography } from '@mui/material';
+import { Call as CallIcon, Mic as MicIcon, MicOff as MicOffIcon } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 
