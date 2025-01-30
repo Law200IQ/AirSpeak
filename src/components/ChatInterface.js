@@ -4,152 +4,54 @@ import { Call as CallIcon, Mic as MicIcon, MicOff as MicOffIcon, Send as SendIco
 import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 
-const ChatContainer = styled(Box)(({ theme }) => ({
+const ChatContainer = styled(Box)({
   width: '800px',
-  height: '500px',
+  margin: '0 auto',
+  padding: '20px',
   display: 'flex',
-  backgroundColor: '#1C1C2D',
-  borderRadius: '12px',
-  overflow: 'hidden',
-  [theme.breakpoints.down('md')]: {
-    width: '100%',
-    height: '100vh',
-    borderRadius: 0,
-    flexDirection: 'column',
-  },
-}));
+  flexDirection: 'column',
+  height: '100vh',
+  backgroundColor: '#1A1B1E',
+  color: '#FFFFFF',
+});
 
-const CallSection = styled(Box)(({ theme }) => ({
-  width: '350px',
-  padding: '24px',
+const CallSection = styled(Box)({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  borderRight: '1px solid rgba(255, 255, 255, 0.1)',
-  [theme.breakpoints.down('md')]: {
-    width: '100%',
-    borderRight: 'none',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-}));
-
-const ChatSection = styled(Box)(({ theme }) => ({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  backgroundColor: '#242444',
-}));
-
-const MessageList = styled(Box)({
-  flex: 1,
-  padding: '16px',
-  overflowY: 'auto',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  '&::-webkit-scrollbar': {
-    width: '4px',
-  },
-  '&::-webkit-scrollbar-track': {
-    background: 'rgba(255, 255, 255, 0.05)',
-  },
-  '&::-webkit-scrollbar-thumb': {
-    background: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: '2px',
-  },
+  marginBottom: '20px',
 });
 
-const MessageBubble = styled(Paper)(({ isUser }) => ({
-  padding: '8px 12px',
-  backgroundColor: isUser ? '#6C5DD3' : 'rgba(255, 255, 255, 0.1)',
-  color: '#fff',
-  borderRadius: '12px',
-  maxWidth: '80%',
-  alignSelf: isUser ? 'flex-end' : 'flex-start',
-}));
-
-const MessageInput = styled(Box)({
-  padding: '16px',
-  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-  display: 'flex',
-  gap: '8px',
-});
-
-const LogoText = styled(Typography)(({ theme }) => ({
-  color: 'white',
-  fontSize: '28px',
+const LogoText = styled(Typography)({
+  fontSize: '2rem',
   fontWeight: 'bold',
-  letterSpacing: '0.5px',
-  marginBottom: '16px',
+  marginBottom: '1rem',
+  color: '#FFFFFF',
   '& span': {
     color: '#6C5DD3',
   },
-  [theme.breakpoints.down('sm')]: {
-    fontSize: '24px',
-  },
-}));
+});
 
 const ActionButtons = styled(Box)({
   display: 'flex',
-  gap: '20px',
   justifyContent: 'center',
-  marginTop: '24px',
-  marginBottom: '24px',
+  marginBottom: '20px',
 });
 
-const ActionButton = styled(IconButton)(({ color = 'primary', active }) => ({
-  backgroundColor: active ? '#FF4B4B' :
-                  color === 'call' ? '#4CAF50' : 
-                  color === 'mute' ? '#6C5DD3' : 
-                  color === 'report' ? '#FF9800' : 
-                  'rgba(255, 255, 255, 0.1)',
-  color: '#fff',
+const ActionButton = styled(IconButton)(({ active }) => ({
+  backgroundColor: active ? '#FF4B4B' : '#6C5DD3',
+  color: '#FFFFFF',
   padding: '12px',
-  width: '56px',
-  height: '56px',
   '&:hover': {
-    backgroundColor: active ? '#E53E3E' :
-                    color === 'call' ? '#388E3C' : 
-                    color === 'mute' ? '#5648B2' : 
-                    color === 'report' ? '#F57C00' : 
-                    'rgba(255, 255, 255, 0.2)',
+    backgroundColor: active ? '#E53E3E' : '#5C4DB3',
   },
-  '& .MuiSvgIcon-root': {
-    fontSize: '24px',
+  '&.Mui-disabled': {
+    backgroundColor: '#2D2D2D',
+    color: '#666666',
   },
 }));
 
-const Controls = styled(Box)({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '12px',
-});
-
-const StyledTextField = styled(TextField)({
-  '& .MuiInputBase-root': {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '24px',
-    color: '#fff',
-  },
-  '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  '& .MuiInputBase-input': {
-    padding: '12px 16px',
-  },
-});
-
-const SendButton = styled(IconButton)({
-  backgroundColor: '#6C5DD3',
-  color: '#fff',
-  '&:hover': {
-    backgroundColor: '#5648B2',
-  },
-  padding: '8px',
-});
-
-const ChatInterface = ({ socket, setIsInCall }) => {
+const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [partnerCountry, setPartnerCountry] = useState(null);
@@ -185,7 +87,11 @@ const ChatInterface = ({ socket, setIsInCall }) => {
       setPartnerCountry(data.targetCountry);
       toast.success(`Partner found from ${getCountryEmoji(data.targetCountry)}`);
     });
-  }, []);
+
+    return () => {
+      socket.off('callStarted');
+    };
+  }, [socket, setIsInCall, getCountryEmoji]);
 
   return (
     <ChatContainer>
@@ -194,7 +100,9 @@ const ChatInterface = ({ socket, setIsInCall }) => {
           Air<span>Speak</span>
         </LogoText>
         <Typography variant="h6" color="white" sx={{ mb: 2 }}>
-          {isSearching ? (
+          {isInCall ? (
+            <>Your partner is from {getCountryEmoji(partnerCountry)}</>
+          ) : isSearching ? (
             'Searching for partner...'
           ) : (
             'Start a new call'
@@ -204,7 +112,6 @@ const ChatInterface = ({ socket, setIsInCall }) => {
         <ActionButtons>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <ActionButton 
-              color="call" 
               onClick={handleCall}
               sx={isSearching ? {
                 backgroundColor: '#FF4B4B',
@@ -212,15 +119,12 @@ const ChatInterface = ({ socket, setIsInCall }) => {
                   backgroundColor: '#E53E3E'
                 },
                 marginRight: '16px'
-              } : {
-                marginRight: '16px'
-              }}
+              } : {}}
             >
               {isSearching ? <CallIcon sx={{ transform: 'rotate(135deg)' }} /> : <CallIcon />}
             </ActionButton>
 
             <ActionButton 
-              color="mute" 
               onClick={() => setIsMuted(!isMuted)} 
               active={isMuted}
               sx={{ marginRight: '16px' }}
@@ -229,32 +133,7 @@ const ChatInterface = ({ socket, setIsInCall }) => {
             </ActionButton>
           </Box>
         </ActionButtons>
-
-        <Controls>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Enable Auto Call
-            </Typography>
-          </Box>
-        </Controls>
       </CallSection>
-
-      <ChatSection>
-        <MessageList>
-          <div ref={socketRef} />
-        </MessageList>
-
-        <MessageInput>
-          <StyledTextField
-            fullWidth
-            placeholder="Type a message..."
-            size="small"
-          />
-          <SendButton>
-            <SendIcon />
-          </SendButton>
-        </MessageInput>
-      </ChatSection>
     </ChatContainer>
   );
 };
