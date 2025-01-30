@@ -58,15 +58,39 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
   const socketRef = useRef(socket);
 
   const getCountryEmoji = useCallback((countryCode) => {
-    if (!countryCode) return '🌍';
+    if (!countryCode || typeof countryCode !== 'string') {
+      console.log('Invalid country code:', countryCode);
+      return '🌍';
+    }
+
+    // Clean and validate the country code
+    const code = countryCode.toUpperCase().trim();
+    if (code.length !== 2) {
+      console.log('Invalid country code length:', code);
+      return '🌍';
+    }
+
     try {
-      const code = countryCode.toUpperCase();
-      // Convert country code to flag emoji
-      const flagEmoji = code
-        .split('')
-        .map(char => String.fromCodePoint(127397 + char.charCodeAt()))
-        .join('');
-      console.log(`Converting country code ${code} to flag emoji: ${flagEmoji}`);
+      // Convert country code to flag emoji using regional indicator symbols
+      const codePoints = Array.from(code).map(char => 127397 + char.charCodeAt(0));
+      const flagEmoji = String.fromCodePoint(...codePoints);
+      
+      // Verify the flag was generated correctly
+      if (flagEmoji.length !== 2) {
+        console.error('Invalid flag emoji generated:', {
+          code,
+          codePoints,
+          flagEmoji,
+          length: flagEmoji.length
+        });
+        return '🌍';
+      }
+
+      console.log('Flag generated successfully:', {
+        code,
+        codePoints,
+        flagEmoji
+      });
       return flagEmoji;
     } catch (error) {
       console.error('Error generating flag:', error);
@@ -86,12 +110,28 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
 
     socket.on('callStarted', (data) => {
       console.log('Call started with data:', data);
+      const country = data.targetCountry;
+      
+      if (!country) {
+        console.error('No country code received:', data);
+        return;
+      }
+
       setIsInCall(true);
       setIsSearching(false);
-      setPartnerCountry(data.targetCountry);
-      const flag = getCountryEmoji(data.targetCountry);
-      console.log(`Partner country: ${data.targetCountry}, Flag: ${flag}`);
-      toast.success(`Partner found! ${flag}`);
+      setPartnerCountry(country);
+      
+      const flag = getCountryEmoji(country);
+      console.log('Partner info:', {
+        country,
+        flag,
+        rawData: data
+      });
+      
+      toast.success('Partner found!', {
+        position: "top-center",
+        autoClose: 3000
+      });
     });
 
     return () => {
@@ -122,7 +162,16 @@ const ChatInterface = ({ socket, isInCall, setIsInCall }) => {
           {isInCall && partnerCountry ? (
             <>
               <span>Your partner is from</span>
-              <span style={{ fontSize: '2rem', lineHeight: 1 }}>{getCountryEmoji(partnerCountry)}</span>
+              <span style={{ 
+                fontSize: '2.5rem', 
+                lineHeight: 1,
+                marginTop: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                {getCountryEmoji(partnerCountry)}
+              </span>
             </>
           ) : isSearching ? (
             'Searching for partner...'

@@ -56,38 +56,102 @@ const searchingUsers = new Map();
 // Cache for IP geolocation results
 const geoCache = new Map();
 
+// List of all country codes
+const ALL_COUNTRIES = [
+  'AF', 'AX', 'AL', 'DZ', 'AS', 'AD', 'AO', 'AI', 'AQ', 'AG', 'AR', 'AM', 'AW', 'AU', 'AT', 'AZ',
+  'BS', 'BH', 'BD', 'BB', 'BY', 'BE', 'BZ', 'BJ', 'BM', 'BT', 'BO', 'BQ', 'BA', 'BW', 'BV', 'BR',
+  'IO', 'BN', 'BG', 'BF', 'BI', 'KH', 'CM', 'CA', 'CV', 'KY', 'CF', 'TD', 'CL', 'CN', 'CX', 'CC',
+  'CO', 'KM', 'CG', 'CD', 'CK', 'CR', 'CI', 'HR', 'CU', 'CW', 'CY', 'CZ', 'DK', 'DJ', 'DM', 'DO',
+  'EC', 'EG', 'SV', 'GQ', 'ER', 'EE', 'ET', 'FK', 'FO', 'FJ', 'FI', 'FR', 'GF', 'PF', 'TF', 'GA',
+  'GM', 'GE', 'DE', 'GH', 'GI', 'GR', 'GL', 'GD', 'GP', 'GU', 'GT', 'GG', 'GN', 'GW', 'GY', 'HT',
+  'HM', 'VA', 'HN', 'HK', 'HU', 'IS', 'IN', 'ID', 'IR', 'IQ', 'IE', 'IM', 'IL', 'IT', 'JM', 'JP',
+  'JE', 'JO', 'KZ', 'KE', 'KI', 'KP', 'KR', 'KW', 'KG', 'LA', 'LV', 'LB', 'LS', 'LR', 'LY', 'LI',
+  'LT', 'LU', 'MO', 'MK', 'MG', 'MW', 'MY', 'MV', 'ML', 'MT', 'MH', 'MQ', 'MR', 'MU', 'YT', 'MX',
+  'FM', 'MD', 'MC', 'MN', 'ME', 'MS', 'MA', 'MZ', 'MM', 'NA', 'NR', 'NP', 'NL', 'NC', 'NZ', 'NI',
+  'NE', 'NG', 'NU', 'NF', 'MP', 'NO', 'OM', 'PK', 'PW', 'PS', 'PA', 'PG', 'PY', 'PE', 'PH', 'PN',
+  'PL', 'PT', 'PR', 'QA', 'RE', 'RO', 'RU', 'RW', 'BL', 'SH', 'KN', 'LC', 'MF', 'PM', 'VC', 'WS',
+  'SM', 'ST', 'SA', 'SN', 'RS', 'SC', 'SL', 'SG', 'SX', 'SK', 'SI', 'SB', 'SO', 'ZA', 'GS', 'SS',
+  'ES', 'LK', 'SD', 'SR', 'SJ', 'SZ', 'SE', 'CH', 'SY', 'TW', 'TJ', 'TZ', 'TH', 'TL', 'TG', 'TK',
+  'TO', 'TT', 'TN', 'TR', 'TM', 'TC', 'TV', 'UG', 'UA', 'AE', 'GB', 'US', 'UM', 'UY', 'UZ', 'VU',
+  'VE', 'VN', 'VG', 'VI', 'WF', 'EH', 'YE', 'ZM', 'ZW'
+];
+
 // Helper function to get country from IP
 const getCountryFromIP = (ip) => {
   try {
-    // For development/localhost
-    if (ip === '::1' || ip === '127.0.0.1' || ip.includes('192.168.') || ip.includes('10.') || process.env.NODE_ENV === 'development') {
-      return 'US';  // Default to US for local testing
+    // For development/localhost/internal IPs
+    if (!ip || 
+        ip === '::1' || 
+        ip === '127.0.0.1' || 
+        ip.includes('192.168.') || 
+        ip.includes('10.') || 
+        ip.includes('172.') ||
+        process.env.NODE_ENV === 'development') {
+      console.log('Development/local IP detected:', ip);
+      // Return a random country for testing
+      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
+      console.log(`Using random country ${randomCountry} for development`);
+      return randomCountry;
     }
 
     // Remove IPv6 prefix if present
     const cleanIP = ip.replace(/^::ffff:/, '');
     
+    // Check if IP is private/local after cleaning
+    if (cleanIP === '127.0.0.1' || 
+        cleanIP.startsWith('192.168.') || 
+        cleanIP.startsWith('10.') || 
+        cleanIP.startsWith('172.')) {
+      console.log('Local network IP detected:', cleanIP);
+      // Return a random country for testing
+      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
+      console.log(`Using random country ${randomCountry} for local IP`);
+      return randomCountry;
+    }
+    
     // Lookup location
     const geo = geoip.lookup(cleanIP);
-    console.log('Geo lookup result:', geo);
+    console.log('Geo lookup result for IP', cleanIP, ':', geo);
     
     if (!geo || !geo.country) {
-      console.log(`No country found for IP: ${cleanIP}`);
-      return 'US'; // Default to US instead of UN
+      console.log(`No country found for IP: ${cleanIP}, using random country`);
+      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
+      console.log(`Using random country ${randomCountry} for unknown IP`);
+      return randomCountry;
+    }
+
+    // Validate that the country code exists in our list
+    const countryCode = geo.country.toUpperCase();
+    if (!ALL_COUNTRIES.includes(countryCode)) {
+      console.log(`Invalid country code ${countryCode} from geo lookup, using random country`);
+      const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
+      return randomCountry;
     }
 
     console.log(`Found country ${geo.country} for IP: ${cleanIP}`);
     return geo.country;
   } catch (error) {
     console.error(`Error getting country from IP ${ip}:`, error);
-    return 'US'; // Default to US instead of UN
+    const randomCountry = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
+    console.log(`Using random country ${randomCountry} due to error`);
+    return randomCountry;
   }
 };
 
 io.on('connection', (socket) => {
   console.log('New user connected:', socket.id);
   
-  const userIP = socket.handshake.address;
+  // Try to get the real IP from headers first
+  const userIP = socket.handshake.headers['x-forwarded-for'] || 
+                 socket.handshake.headers['x-real-ip'] || 
+                 socket.handshake.address;
+                 
+  console.log('Connection headers:', {
+    forwarded: socket.handshake.headers['x-forwarded-for'],
+    real: socket.handshake.headers['x-real-ip'],
+    direct: socket.handshake.address
+  });
+
   const userCountry = getCountryFromIP(userIP);
   console.log(`New connection from ${userIP} (${userCountry})`);
 
@@ -103,6 +167,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startCall', async () => {
+    console.log('User starting call:', socket.id);
     const user = activeUsers.get(socket.id);
     if (!user || user.busy) return;
 
@@ -135,12 +200,12 @@ io.on('connection', (socket) => {
       io.to(socket.id).emit('callStarted', {
         callId,
         targetId: partner.socketId,
-        targetCountry: partner.country || 'US' // Fallback to US if no country
+        targetCountry: partner.country
       });
       io.to(partner.socketId).emit('callStarted', {
         callId,
         targetId: socket.id,
-        targetCountry: user.country || 'US' // Fallback to US if no country
+        targetCountry: user.country
       });
 
       // Save call to database
@@ -150,22 +215,6 @@ io.on('connection', (socket) => {
         startTime: new Date(),
         countries: [user.country, partner.country]
       }).save();
-    } else {
-      // No partner available, notify user they're in queue
-      socket.emit('searchStatus', {
-        status: 'searching',
-        message: 'Searching for a partner who started a call...',
-        timestamp: Date.now()
-      });
-
-      // Set a timeout to check if still searching after 60 seconds
-      setTimeout(() => {
-        if (searchingUsers.has(socket.id)) {
-          socket.emit('searchTimeout', {
-            message: 'No partners available. Keep waiting?'
-          });
-        }
-      }, 60000);
     }
   });
 
