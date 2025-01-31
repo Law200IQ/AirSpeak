@@ -16,18 +16,33 @@ const CountryPreference = require('./models/CountryPreference');
 
 const app = express();
 
-// Security middleware
+// Security middleware with relaxed CORS settings
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(compression());
 
-// Enable CORS for all routes
+// Enable CORS for all routes with specific origin
+const allowedOrigins = [
+  'https://law200iq.github.io',
+  'http://localhost:3000',
+  'http://localhost:5000'
+];
+
 app.use(cors({
-  origin: "*",
-  methods: ['GET', 'POST'],
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 
 const server = http.createServer(app);
@@ -36,7 +51,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
     transports: ['websocket', 'polling']
   },
