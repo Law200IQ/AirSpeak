@@ -91,18 +91,43 @@ const VoiceChat = () => {
     const peer = new Peer({
       initiator,
       stream: localStream,
-      trickle: false,
+      trickle: true, // Enable trickle ICE
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
+          { urls: 'stun:stun1.l.google.com:19302' },
+          {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
+        ],
+        iceCandidatePoolSize: 10
       }
     });
 
     peer.on('signal', data => {
-      console.log('Sending signal');
-      socket.emit('signal', { signal: data });
+      console.log('Signal data:', data);
+      socket.emit('signal', data);
+    });
+
+    peer.on('connect', () => {
+      console.log('Peer connection established');
+      toast.success('Connected to peer');
+    });
+
+    peer.on('error', err => {
+      console.error('Peer connection error:', err);
+      toast.error('Connection error: ' + err.message);
+    });
+
+    peer.on('iceStateChange', (state) => {
+      console.log('ICE connection state:', state);
     });
 
     peer.on('stream', stream => {
@@ -110,14 +135,11 @@ const VoiceChat = () => {
       setRemoteStream(stream);
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = stream;
-        toast.success('Connected to peer');
       }
     });
 
-    peer.on('error', err => {
-      console.error('Peer error:', err);
-      toast.error('Connection error');
-      handleEndCall();
+    peer.on('iceCandidate', (candidate) => {
+      console.log('ICE candidate:', candidate);
     });
 
     return peer;
@@ -171,11 +193,11 @@ const VoiceChat = () => {
     socket.on('signal', data => {
       console.log('Received signal');
       if (peerRef.current) {
-        peerRef.current.signal(data.signal);
+        peerRef.current.signal(data);
       } else {
         const peer = createPeer(false);
         if (peer) {
-          peer.signal(data.signal);
+          peer.signal(data);
           peerRef.current = peer;
           setIsInCall(true);
           toast.info('Connecting to peer...');
