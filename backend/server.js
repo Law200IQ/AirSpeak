@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
 const geoip = require('geoip-lite');
 const connectDB = require('./config/db');
 require('dotenv').config();
@@ -14,9 +16,17 @@ const CountryPreference = require('./models/CountryPreference');
 
 const app = express();
 
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+app.use(compression());
+
 // Enable CORS for all routes
 app.use(cors({
-  origin: true,
+  origin: "*",
+  methods: ['GET', 'POST'],
   credentials: true
 }));
 
@@ -25,12 +35,27 @@ const server = http.createServer(app);
 // Socket.IO setup with more permissive CORS
 const io = socketIo(server, {
   cors: {
-    origin: true,
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true,
     transports: ['websocket', 'polling']
   },
-  allowEIO3: true // Allow Engine.IO version 3
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  maxHttpBufferSize: 1e8,
+  transports: ['websocket', 'polling']
+});
+
+// Add error handling for the server
+server.on('error', (error) => {
+  console.error('Server error:', error);
+});
+
+// Add error handling for socket.io
+io.on('error', (error) => {
+  console.error('Socket.IO error:', error);
 });
 
 // Basic health check route
@@ -120,8 +145,12 @@ const getCountryFromIP = (ip) => {
 };
 
 io.on('connection', (socket) => {
-  console.log('New user connected:', socket.id);
+  console.log('New client connected:', socket.id);
   
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
+  });
+
   // Try to get the real IP from headers first
   const userIP = socket.handshake.headers['x-forwarded-for'] || 
                  socket.handshake.headers['x-real-ip'] || 
