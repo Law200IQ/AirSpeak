@@ -1,4 +1,9 @@
-const express = require('express');
+const corsOptions = {
+  origin: 'https://law200iq.github.io', // Update this to your GitHub Pages URL
+  credentials: true, // Allow credentials
+};
+
+app.use(cors(corsOptions));const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
