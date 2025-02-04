@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Button, IconButton } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import CallIcon from '@mui/icons-material/Call';
 import CallEndIcon from '@mui/icons-material/CallEnd';
-import socket from '../utils/socket';
+import io from 'socket.io-client'; // Updated import
 import Peer from 'simple-peer';
 
-// Version 2.0.0 - Complete rewrite for better reliability
 const Container = styled(Box)({
   display: 'flex',
   flexDirection: 'column',
@@ -43,34 +42,45 @@ const VoiceChat = () => {
   const peerRef = useRef();
   const localAudioRef = useRef();
   const remoteAudioRef = useRef();
+  const socket = useRef(null); // Updated socket declaration
 
   useEffect(() => {
-    socket.connect();
+    // Initialize socket connection
+    socket.current = io('https://airspeak.onrender.com', {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+    });
 
-    socket.on('connect', () => {
+    socket.current.on('connect', () => {
       console.log('Connected to server');
       toast.success('Connected to server');
     });
 
-    socket.on('disconnect', () => {
+    socket.current.on('disconnect', () => {
       console.log('Disconnected from server');
       toast.error('Disconnected from server');
       handleEndCall();
     });
 
+    socket.current.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+
     return () => {
-      socket.disconnect();
+      if (socket.current) {
+        socket.current.disconnect();
+      }
     };
   }, []);
 
   const getMicrophone = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
-        }
+          autoGainControl: true,
+        },
       });
       setLocalStream(stream);
       if (localAudioRef.current) {
@@ -99,21 +109,21 @@ const VoiceChat = () => {
           {
             urls: 'turn:openrelay.metered.ca:80',
             username: 'openrelayproject',
-            credential: 'openrelayproject'
+            credential: 'openrelayproject',
           },
           {
             urls: 'turn:openrelay.metered.ca:443',
             username: 'openrelayproject',
-            credential: 'openrelayproject'
-          }
+            credential: 'openrelayproject',
+          },
         ],
-        iceCandidatePoolSize: 10
-      }
+        iceCandidatePoolSize: 10,
+      },
     });
 
-    peer.on('signal', data => {
+    peer.on('signal', (data) => {
       console.log('Signal data:', data);
-      socket.emit('signal', data);
+      socket.current.emit('signal', data);
     });
 
     peer.on('connect', () => {
@@ -121,7 +131,7 @@ const VoiceChat = () => {
       toast.success('Connected to peer');
     });
 
-    peer.on('error', err => {
+    peer.on('error', (err) => {
       console.error('Peer connection error:', err);
       toast.error('Connection error: ' + err.message);
     });
@@ -130,7 +140,7 @@ const VoiceChat = () => {
       console.log('ICE connection state:', state);
     });
 
-    peer.on('stream', stream => {
+    peer.on('stream', (stream) => {
       console.log('Received remote stream');
       setRemoteStream(stream);
       if (remoteAudioRef.current) {
@@ -151,7 +161,7 @@ const VoiceChat = () => {
       if (!stream) return;
     }
 
-    socket.emit('ready');
+    socket.current.emit('ready');
     toast.info('Waiting for someone to join...');
   };
 
@@ -180,7 +190,7 @@ const VoiceChat = () => {
   useEffect(() => {
     getMicrophone();
 
-    socket.on('ready', async () => {
+    socket.current.on('ready', async () => {
       console.log('Someone is ready to call');
       const peer = createPeer(true);
       if (peer) {
@@ -190,7 +200,7 @@ const VoiceChat = () => {
       }
     });
 
-    socket.on('signal', data => {
+    socket.current.on('signal', (data) => {
       console.log('Received signal');
       if (peerRef.current) {
         peerRef.current.signal(data);
@@ -207,7 +217,7 @@ const VoiceChat = () => {
 
     return () => {
       if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+        localStream.getTracks().forEach((track) => track.stop());
       }
       handleEndCall();
     };
